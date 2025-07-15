@@ -2,8 +2,8 @@
 import Link from 'next/link';
 import { getAllPosts, getContentByTag, getContentByDifficulty } from '../../../lib/markdown';
 
-export default function PostsPage() {
-  const allPosts = getAllPosts();
+export default async function PostsPage() {
+  const allPosts = await getAllPosts();
 
   // Get unique tags and difficulties for filtering
   const allTags = [...new Set(allPosts.flatMap(post => post.tags || []))];
@@ -81,8 +81,8 @@ export default function PostsPage() {
         </div>
       </div>
 
-      {/* Posts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Posts Grid - Simple 2 column layout */}
+      <div className="posts-two-column-grid">
         {allPosts.length > 0 ? (
           allPosts.map((post) => (
             <article key={post.slug} className="glass-card overflow-hidden hover:scale-105 transition-transform duration-300">
@@ -107,7 +107,13 @@ export default function PostsPage() {
                   )}
                 </div>
                 
-                <h3 className="text-xl font-bold text-white mb-2">{post.title}</h3>
+                {/* Clickable headline */}
+                <Link href={`/posts/${post.slug}`}>
+                  <h3 className="text-xl font-bold text-white mb-2 hover:text-blue-300 transition-colors cursor-pointer">
+                    {post.title}
+                  </h3>
+                </Link>
+                
                 <p className="text-gray-300 mb-4 text-sm">{post.excerpt}</p>
                 
                 <div className="flex flex-wrap gap-2 mb-4">

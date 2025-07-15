@@ -1,16 +1,16 @@
-// src/app/page.tsx - Updated for new folder structure
+// src/app/page.tsx - Updated with 2-column layouts for featured content
 import Link from 'next/link';
 import { getFeaturedPosts, getFeaturedTutorials, getFeaturedCourses, getPageBySlug } from '../../lib/markdown';
 
-export default function Home() {
-  const featuredPosts = getFeaturedPosts(3);
-  const featuredTutorials = getFeaturedTutorials(3);
-  const featuredCourses = getFeaturedCourses(2);
+export default async function Home() {
+  const featuredPosts = await getFeaturedPosts(3);
+  const featuredTutorials = await getFeaturedTutorials(3);
+  const featuredCourses = await getFeaturedCourses(2);
   
   // Try to get mission content from pages, fallback to inline content
   let missionContent = null;
   try {
-    missionContent = getPageBySlug('mission');
+    missionContent = await getPageBySlug('mission');
   } catch (error) {
     // Mission page doesn't exist, use inline content
     console.log('Mission page not found, using inline content');
@@ -55,13 +55,16 @@ export default function Home() {
           <h2 className="text-3xl font-bold gradient-text mb-6">
             {missionContent?.title || 'Our Mission'}
           </h2>
-          <p className="text-xl text-gray-300 mb-6">
-            {missionContent ? (
-              <div dangerouslySetInnerHTML={{ __html: missionContent.content }} />
-            ) : (
-              'To democratize blockchain development knowledge and make advanced technologies accessible to developers worldwide.'
-            )}
-          </p>
+          {missionContent?.content ? (
+  <div 
+    className="text-xl text-gray-300 mb-6"
+    dangerouslySetInnerHTML={{ __html: missionContent.content }} 
+  />
+  ) : (
+  <p className="text-xl text-gray-300 mb-6">
+    To democratize blockchain development knowledge and make advanced technologies accessible to developers worldwide.
+  </p>
+  )}
           
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div className="text-center">
@@ -102,7 +105,7 @@ export default function Home() {
           <h2 className="text-4xl font-bold gradient-text mb-4">Technologies I'm Exploring</h2>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="tech-stack-grid">
           {[
             { name: 'Solidity', icon: '⚡', desc: 'Smart contracts for Ethereum' },
             { name: 'Cairo', icon: '🏛️', desc: 'StarkNet programming language' },
@@ -127,7 +130,7 @@ export default function Home() {
           <p className="text-xl text-gray-300">Recent blog posts and insights</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="featured-posts-grid">
           {featuredPosts.length > 0 ? (
             featuredPosts.map((post) => (
               <article key={post.slug} className="glass-card overflow-hidden hover:scale-105 transition-transform duration-300">
@@ -152,7 +155,13 @@ export default function Home() {
                     )}
                   </div>
                   
-                  <h3 className="text-xl font-bold text-white mb-2">{post.title}</h3>
+                  {/* Clickable headline */}
+                  <Link href={`/posts/${post.slug}`}>
+                    <h3 className="text-xl font-bold text-white mb-2 hover:text-blue-300 transition-colors cursor-pointer">
+                      {post.title}
+                    </h3>
+                  </Link>
+                  
                   <p className="text-gray-300 mb-4 text-sm">{post.excerpt}</p>
                   
                   <div className="flex justify-between items-center">
@@ -191,7 +200,7 @@ export default function Home() {
           <p className="text-xl text-gray-300">Step-by-step guides to master blockchain development</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="featured-tutorials-grid">
           {featuredTutorials.length > 0 ? (
             featuredTutorials.map((tutorial) => (
               <article key={tutorial.slug} className="glass-card overflow-hidden hover:scale-105 transition-transform duration-300">
@@ -219,7 +228,13 @@ export default function Home() {
                     ))}
                   </div>
                   
-                  <h3 className="text-xl font-bold text-white mb-2">{tutorial.title}</h3>
+                  {/* Clickable headline */}
+                  <Link href={`/tutorials/${tutorial.slug}`}>
+                    <h3 className="text-xl font-bold text-white mb-2 hover:text-green-300 transition-colors cursor-pointer">
+                      {tutorial.title}
+                    </h3>
+                  </Link>
+                  
                   <p className="text-gray-300 mb-4 text-sm">{tutorial.excerpt}</p>
                   
                   <div className="flex justify-between items-center">
@@ -258,7 +273,7 @@ export default function Home() {
           <p className="text-xl text-gray-300">Comprehensive learning paths for blockchain mastery</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="featured-courses-grid">
           {featuredCourses.length > 0 ? (
             featuredCourses.map((course) => (
               <article key={course.slug} className="glass-card overflow-hidden hover:scale-105 transition-transform duration-300">
@@ -286,7 +301,13 @@ export default function Home() {
                     )}
                   </div>
                   
-                  <h3 className="text-xl font-bold text-white mb-2">{course.title}</h3>
+                  {/* Clickable headline */}
+                  <Link href={`/courses/${course.slug}`}>
+                    <h3 className="text-xl font-bold text-white mb-2 hover:text-orange-300 transition-colors cursor-pointer">
+                      {course.title}
+                    </h3>
+                  </Link>
+                  
                   <p className="text-gray-300 mb-4 text-sm">{course.excerpt}</p>
                   
                   <div className="flex justify-between items-center">

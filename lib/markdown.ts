@@ -1,4 +1,3 @@
-// lib/markdown.ts - Updated for new folder structure
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
@@ -6,8 +5,11 @@ import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import remarkHtml from 'remark-html';
 
+// Configurable content root
+const CONTENT_ROOT = process.env.CONTENT_ROOT || path.join(process.cwd(), 'content');
+
 // Directory paths
-const contentDirectory = path.join(process.cwd(), 'content');
+const contentDirectory = CONTENT_ROOT;
 const postsDirectory = path.join(contentDirectory, 'posts');
 const pagesDirectory = path.join(contentDirectory, 'pages');
 const tutorialsDirectory = path.join(contentDirectory, 'tutorials');
@@ -80,12 +82,26 @@ function getMarkdownFiles(directory: string): string[] {
   return fileNames.filter(fileName => fileName.endsWith('.md'));
 }
 
+// Convert markdown to HTML
+export async function markdownToHtml(markdown: string): Promise<string> {
+  try {
+    const result = await remark()
+      .use(remarkGfm)
+      .use(remarkHtml, { sanitize: false })
+      .process(markdown);
+    return result.toString();
+  } catch (error) {
+    console.error('Markdown processing error:', error, 'Content snippet:', markdown.slice(0, 100));
+    throw new Error('Failed to process markdown content');
+  }
+}
+
 // Generic function to get content by slug
-function getContentBySlug<T extends BaseContent>(
+async function getContentBySlug<T extends BaseContent>(
   directory: string,
   slug: string,
   contentType: ContentType
-): T {
+): Promise<T> {
   const fullPath = path.join(directory, `${slug}.md`);
   
   if (!fs.existsSync(fullPath)) {
@@ -94,16 +110,25 @@ function getContentBySlug<T extends BaseContent>(
   
   const fileContents = fs.readFileSync(fullPath, 'utf8');
   const { data, content } = matter(fileContents);
+  const htmlContent = await markdownToHtml(content); // Convert markdown to HTML
+
+  // Clean content for excerpt by removing frontmatter and code blocks
+  const cleanContent = content.replace(/```[\s\S]*?```/g, '').replace(/^---[\s\S]*?---/, '');
+  
+  // Validate and normalize date
+  const parsedDate = data.date 
+    ? new Date(data.date).toISOString().split('T')[0] 
+    : new Date().toISOString().split('T')[0];
 
   const baseContent = {
     slug,
     title: data.title || 'Untitled',
-    date: data.date || new Date().toISOString().split('T')[0],
+    date: parsedDate,
     author: data.author,
     tags: data.tags || [],
     image: data.image,
-    excerpt: data.excerpt || content.slice(0, 150) + '...',
-    content,
+    excerpt: data.excerpt || cleanContent.slice(0, 150).trim() + '...',
+    content: htmlContent,
   };
 
   // Add type-specific fields
@@ -136,31 +161,30 @@ function getContentBySlug<T extends BaseContent>(
 }
 
 // Generic function to get all content from a directory
-function getAllContent<T extends BaseContent>(
+async function getAllContent<T extends BaseContent>(
   directory: string,
   contentType: ContentType
-): T[] {
+): Promise<T[]> {
   const fileNames = getMarkdownFiles(directory);
-  const allContent = fileNames
-    .map((fileName) => {
+  const allContent = await Promise.all(
+    fileNames.map(async (fileName) => {
       const slug = fileName.replace(/\.md$/, '');
       return getContentBySlug<T>(directory, slug, contentType);
     })
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
-
-  return allContent;
+  );
+  return allContent.sort((a, b) => (a.date < b.date ? 1 : -1));
 }
 
 // POSTS FUNCTIONS
-export function getAllPosts(): PostData[] {
+export async function getAllPosts(): Promise<PostData[]> {
   return getAllContent<PostData>(postsDirectory, 'posts');
 }
 
-export function getPostBySlug(slug: string): PostData {
+export async function getPostBySlug(slug: string): Promise<PostData> {
   return getContentBySlug<PostData>(postsDirectory, slug, 'posts');
 }
 
-export function getAllPostSlugs() {
+export async function getAllPostSlugs() {
   const fileNames = getMarkdownFiles(postsDirectory);
   return fileNames.map((fileName) => ({
     params: {
@@ -169,21 +193,21 @@ export function getAllPostSlugs() {
   }));
 }
 
-export function getFeaturedPosts(limit: number = 3): PostData[] {
-  const allPosts = getAllPosts();
+export async function getFeaturedPosts(limit: number = 3): Promise<PostData[]> {
+  const allPosts = await getAllPosts();
   return allPosts.slice(0, limit);
 }
 
 // TUTORIALS FUNCTIONS
-export function getAllTutorials(): TutorialData[] {
+export async function getAllTutorials(): Promise<TutorialData[]> {
   return getAllContent<TutorialData>(tutorialsDirectory, 'tutorials');
 }
 
-export function getTutorialBySlug(slug: string): TutorialData {
+export async function getTutorialBySlug(slug: string): Promise<TutorialData> {
   return getContentBySlug<TutorialData>(tutorialsDirectory, slug, 'tutorials');
 }
 
-export function getAllTutorialSlugs() {
+export async function getAllTutorialSlugs() {
   const fileNames = getMarkdownFiles(tutorialsDirectory);
   return fileNames.map((fileName) => ({
     params: {
@@ -192,21 +216,21 @@ export function getAllTutorialSlugs() {
   }));
 }
 
-export function getFeaturedTutorials(limit: number = 3): TutorialData[] {
-  const allTutorials = getAllTutorials();
+export async function getFeaturedTutorials(limit: number = 3): Promise<TutorialData[]> {
+  const allTutorials = await getAllTutorials();
   return allTutorials.slice(0, limit);
 }
 
 // COURSES FUNCTIONS
-export function getAllCourses(): CourseData[] {
+export async function getAllCourses(): Promise<CourseData[]> {
   return getAllContent<CourseData>(coursesDirectory, 'courses');
 }
 
-export function getCourseBySlug(slug: string): CourseData {
+export async function getCourseBySlug(slug: string): Promise<CourseData> {
   return getContentBySlug<CourseData>(coursesDirectory, slug, 'courses');
 }
 
-export function getAllCourseSlugs() {
+export async function getAllCourseSlugs() {
   const fileNames = getMarkdownFiles(coursesDirectory);
   return fileNames.map((fileName) => ({
     params: {
@@ -215,13 +239,13 @@ export function getAllCourseSlugs() {
   }));
 }
 
-export function getFeaturedCourses(limit: number = 3): CourseData[] {
-  const allCourses = getAllCourses();
+export async function getFeaturedCourses(limit: number = 3): Promise<CourseData[]> {
+  const allCourses = await getAllCourses();
   return allCourses.slice(0, limit);
 }
 
 // PAGES FUNCTIONS
-export function getPageBySlug(slug: string): PageData {
+export async function getPageBySlug(slug: string): Promise<PageData> {
   const fullPath = path.join(pagesDirectory, `${slug}.md`);
   
   if (!fs.existsSync(fullPath)) {
@@ -230,54 +254,56 @@ export function getPageBySlug(slug: string): PageData {
   
   const fileContents = fs.readFileSync(fullPath, 'utf8');
   const { data, content } = matter(fileContents);
+  const htmlContent = await markdownToHtml(content);
 
   return {
     slug,
     title: data.title || 'Untitled',
-    content,
+    content: htmlContent,
     lastUpdated: data.lastUpdated,
     author: data.author,
   };
 }
 
-export function getAllPages(): PageData[] {
+export async function getAllPages(): Promise<PageData[]> {
   const fileNames = getMarkdownFiles(pagesDirectory);
-  return fileNames.map((fileName) => {
-    const slug = fileName.replace(/\.md$/, '');
-    return getPageBySlug(slug);
-  });
+  return Promise.all(
+    fileNames.map(async (fileName) => {
+      const slug = fileName.replace(/\.md$/, '');
+      return getPageBySlug(slug);
+    })
+  );
 }
 
 // SEARCH AND FILTER FUNCTIONS
-export function getContentByTag(tag: string): (PostData | TutorialData | CourseData)[] {
-  const allPosts = getAllPosts();
-  const allTutorials = getAllTutorials();
-  const allCourses = getAllCourses();
+export async function getContentByTag(tag: string): Promise<(PostData | TutorialData | CourseData)[]> {
+  const allPosts = await getAllPosts();
+  const allTutorials = await getAllTutorials();
+  const allCourses = await getAllCourses();
   
   const allContent = [...allPosts, ...allTutorials, ...allCourses];
   
   return allContent.filter(content => 
-    content.tags && content.tags.some(t => t.toLowerCase() === tag.toLowerCase())
+    content.tags?.some(t => t.toLowerCase() === tag.toLowerCase()) || false
   );
 }
 
-export function getContentByBlockchain(blockchain: string): (PostData | TutorialData | CourseData)[] {
-  const allPosts = getAllPosts();
-  const allTutorials = getAllTutorials();
-  const allCourses = getAllCourses();
+export async function getContentByBlockchain(blockchain: string): Promise<(PostData | TutorialData | CourseData)[]> {
+  const allPosts = await getAllPosts();
+  const allTutorials = await getAllTutorials();
+  const allCourses = await getAllCourses();
   
   const allContent = [...allPosts, ...allTutorials, ...allCourses];
   
   return allContent.filter(content => 
-    'blockchain' in content && content.blockchain && 
-    content.blockchain.some(b => b.toLowerCase() === blockchain.toLowerCase())
+    content.blockchain?.some(b => b.toLowerCase() === blockchain.toLowerCase()) || false
   );
 }
 
-export function getContentByDifficulty(difficulty: 'beginner' | 'intermediate' | 'advanced'): (PostData | TutorialData | CourseData)[] {
-  const allPosts = getAllPosts();
-  const allTutorials = getAllTutorials();
-  const allCourses = getAllCourses();
+export async function getContentByDifficulty(difficulty: 'beginner' | 'intermediate' | 'advanced'): Promise<(PostData | TutorialData | CourseData)[]> {
+  const allPosts = await getAllPosts();
+  const allTutorials = await getAllTutorials();
+  const allCourses = await getAllCourses();
   
   const allContent = [...allPosts, ...allTutorials, ...allCourses];
   
@@ -286,10 +312,10 @@ export function getContentByDifficulty(difficulty: 'beginner' | 'intermediate' |
   );
 }
 
-export function searchContent(query: string): (PostData | TutorialData | CourseData)[] {
-  const allPosts = getAllPosts();
-  const allTutorials = getAllTutorials();
-  const allCourses = getAllCourses();
+export async function searchContent(query: string): Promise<(PostData | TutorialData | CourseData)[]> {
+  const allPosts = await getAllPosts();
+  const allTutorials = await getAllTutorials();
+  const allCourses = await getAllCourses();
   
   const allContent = [...allPosts, ...allTutorials, ...allCourses];
   const searchTerm = query.toLowerCase();
@@ -297,44 +323,25 @@ export function searchContent(query: string): (PostData | TutorialData | CourseD
   return allContent.filter(content => 
     content.title.toLowerCase().includes(searchTerm) ||
     content.content.toLowerCase().includes(searchTerm) ||
-    (content.tags && content.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
+    (content.tags?.some(tag => tag.toLowerCase().includes(searchTerm)) || false)
   );
 }
 
-// UTILITY FUNCTIONS
-export async function markdownToHtml(markdown: string): Promise<string> {
-  try {
-    const result = await remark()
-      .use(remarkGfm)
-      .use(remarkHtml, { sanitize: false })
-      .process(markdown);
-
-    return result.toString();
-  } catch (error) {
-    console.error('Markdown processing error:', error);
-    return markdown
-      .replace(/\n/g, '<br/>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em>$1</em>')
-      .replace(/```(.*?)\n([\s\S]*?)\n```/g, '<pre><code class="language-$1">$2</code></pre>');
-  }
-}
-
 // Get all content for homepage/general use
-export function getAllContentForHomepage() {
+export async function getAllContentForHomepage() {
   return {
-    posts: getFeaturedPosts(3),
-    tutorials: getFeaturedTutorials(3),
-    courses: getFeaturedCourses(3),
+    posts: await getFeaturedPosts(3),
+    tutorials: await getFeaturedTutorials(3),
+    courses: await getFeaturedCourses(3),
   };
 }
 
 // Get content stats
-export function getContentStats() {
+export async function getContentStats() {
   return {
-    posts: getAllPosts().length,
-    tutorials: getAllTutorials().length,
-    courses: getAllCourses().length,
-    pages: getAllPages().length,
+    posts: (await getAllPosts()).length,
+    tutorials: (await getAllTutorials()).length,
+    courses: (await getAllCourses()).length,
+    pages: (await getAllPages()).length,
   };
 }
