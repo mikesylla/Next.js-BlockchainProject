@@ -161,6 +161,13 @@ export default function PostsPage() {
           </div>
         )}
       </div>
+
+      {/* Back to Home */}
+      <div className="text-center mt-12">
+        <Link href="/" className="btn-secondary">
+          ← Back to Home
+        </Link>
+      </div>
     </div>
   );
 }
