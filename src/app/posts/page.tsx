@@ -1,90 +1,117 @@
-// src/app/posts/page.tsx
+// src/app/posts/page.tsx - Add search and filter functionality
+"use client";
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getAllPosts, getContentByTag, getContentByDifficulty } from '../../../lib/markdown';
+import SearchBar from '../../components/SearchBar';
+import FilterTags from '../../components/FilterTags';
+import { PostData } from '../../../lib/markdown';
 
-export default async function PostsPage() {
-  const allPosts = await getAllPosts();
+// This would normally be fetched server-side, but for search/filter we need client-side
+export default function PostsPage() {
+  const [posts, setPosts] = useState<PostData[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<PostData[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('');
 
-  // Get unique tags and difficulties for filtering
-  const allTags = [...new Set(allPosts.flatMap(post => post.tags || []))];
-  const difficulties = ['beginner', 'intermediate', 'advanced'] as const;
+  useEffect(() => {
+    // Fetch posts - you'll need to create an API route for this
+    fetch('/api/posts')
+      .then(res => res.json())
+      .then(data => {
+        setPosts(data);
+        setFilteredPosts(data);
+        
+        // Extract all unique tags
+        const tags = [...new Set(data.flatMap((post: PostData) => post.tags || []))];
+        setAllTags(tags);
+      });
+  }, []);
+
+  useEffect(() => {
+    let filtered = posts;
+
+    // Filter by search query
+    if (searchQuery) {
+      filtered = filtered.filter(post =>
+        post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (post.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) || false)
+      );
+    }
+
+    // Filter by selected tags
+    if (selectedTags.length > 0) {
+      filtered = filtered.filter(post =>
+        selectedTags.some(tag => post.tags?.includes(tag))
+      );
+    }
+
+    // Filter by difficulty
+    if (selectedDifficulty) {
+      filtered = filtered.filter(post => post.difficulty === selectedDifficulty);
+    }
+
+    setFilteredPosts(filtered);
+  }, [posts, searchQuery, selectedTags, selectedDifficulty]);
+
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
 
   return (
     <div className="container mx-auto py-16">
-      {/* Header */}
       <div className="text-center mb-12">
         <h1 className="text-5xl font-bold gradient-text mb-4">Blog Posts</h1>
-        <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-          Insights, tutorials, and thoughts on blockchain development
+        <p className="text-xl text-gray-300">
+          Insights, tutorials, and deep dives into blockchain development
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="glass-card p-6 mb-12 text-center">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <div className="text-3xl font-bold text-blue-400">{allPosts.length}</div>
-            <div className="text-gray-300">Total Posts</div>
+      {/* Search and Filters */}
+      <div className="space-y-6 mb-12">
+        <SearchBar onSearch={setSearchQuery} />
+        
+        <div className="flex flex-col lg:flex-row gap-6 items-center">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-gray-300 mb-2">Filter by Tags:</h3>
+            <FilterTags 
+              tags={allTags}
+              selectedTags={selectedTags}
+              onTagToggle={handleTagToggle}
+            />
           </div>
+          
           <div>
-            <div className="text-3xl font-bold text-green-400">{allTags.length}</div>
-            <div className="text-gray-300">Topics Covered</div>
-          </div>
-          <div>
-            <div className="text-3xl font-bold text-purple-400">
-              {[...new Set(allPosts.flatMap(post => post.blockchain || []))].length}
-            </div>
-            <div className="text-gray-300">Blockchain Technologies</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Tags */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold text-white mb-4">Filter by Topic</h2>
-        <div className="flex flex-wrap gap-2">
-          <Link 
-            href="/posts"
-            className="px-3 py-1 bg-white/10 text-gray-300 rounded-full text-sm hover:bg-white/20 transition-colors"
-          >
-            All Posts
-          </Link>
-          {allTags.map(tag => (
-            <Link 
-              key={tag} 
-              href={`/posts?tag=${tag}`}
-              className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm hover:bg-blue-500/30 transition-colors"
+            <h3 className="text-sm font-semibold text-gray-300 mb-2">Difficulty:</h3>
+            <select
+              value={selectedDifficulty}
+              onChange={(e) => setSelectedDifficulty(e.target.value)}
+              className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
             >
-              {tag}
-            </Link>
-          ))}
+              <option value="">All Levels</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Results count */}
+        <div className="text-center text-gray-400">
+          Showing {filteredPosts.length} of {posts.length} posts
         </div>
       </div>
 
-      {/* Filter by Difficulty */}
-      <div className="mb-12">
-        <h2 className="text-xl font-semibold text-white mb-4">Filter by Difficulty</h2>
-        <div className="flex flex-wrap gap-2">
-          {difficulties.map(difficulty => (
-            <Link 
-              key={difficulty} 
-              href={`/posts?difficulty=${difficulty}`}
-              className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                difficulty === 'beginner' ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' :
-                difficulty === 'intermediate' ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30' :
-                'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-              }`}
-            >
-              {difficulty}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Posts Grid - Simple 2 column layout */}
+      {/* Posts Grid */}
       <div className="posts-two-column-grid">
-        {allPosts.length > 0 ? (
-          allPosts.map((post) => (
+        {filteredPosts.length > 0 ? (
+          filteredPosts.map((post) => (
             <article key={post.slug} className="glass-card overflow-hidden hover:scale-105 transition-transform duration-300">
               <div className="h-48 flex items-center justify-center" style={{background: 'linear-gradient(to bottom right, #3b82f6, #9333ea)'}}>
                 <div className="text-white text-4xl opacity-75">📝</div>
@@ -107,7 +134,6 @@ export default async function PostsPage() {
                   )}
                 </div>
                 
-                {/* Clickable headline */}
                 <Link href={`/posts/${post.slug}`}>
                   <h3 className="text-xl font-bold text-white mb-2 hover:text-blue-300 transition-colors cursor-pointer">
                     {post.title}
@@ -116,21 +142,8 @@ export default async function PostsPage() {
                 
                 <p className="text-gray-300 mb-4 text-sm">{post.excerpt}</p>
                 
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {post.blockchain?.slice(0, 2).map((blockchain) => (
-                    <span key={blockchain} className="px-2 py-1 bg-purple-500/20 text-purple-400 text-xs rounded-full">
-                      {blockchain}
-                    </span>
-                  ))}
-                </div>
-                
                 <div className="flex justify-between items-center">
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-400">{post.date}</span>
-                    {post.author && (
-                      <span className="text-xs text-gray-500">by {post.author}</span>
-                    )}
-                  </div>
+                  <span className="text-xs text-gray-400">{post.date}</span>
                   <Link 
                     href={`/posts/${post.slug}`}
                     className="text-blue-400 hover:text-blue-300 text-sm font-semibold transition-colors"
@@ -143,17 +156,10 @@ export default async function PostsPage() {
           ))
         ) : (
           <div className="glass-card p-8 text-center col-span-full">
-            <h3 className="text-xl font-bold text-white mb-2">No Posts Found</h3>
-            <p className="text-gray-300">Check back soon for new content!</p>
+            <h3 className="text-xl font-bold text-white mb-2">No posts found</h3>
+            <p className="text-gray-300">Try adjusting your search or filter criteria.</p>
           </div>
         )}
-      </div>
-
-      {/* Back to Home */}
-      <div className="text-center mt-12">
-        <Link href="/" className="btn-secondary">
-          ← Back to Home
-        </Link>
       </div>
     </div>
   );

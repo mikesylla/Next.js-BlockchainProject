@@ -1,6 +1,7 @@
-// src/app/page.tsx - Updated with 2-column layouts for featured content
+// src/app/page.tsx - Add Newsletter component
 import Link from 'next/link';
 import { getFeaturedPosts, getFeaturedTutorials, getFeaturedCourses, getPageBySlug } from '../../lib/markdown';
+import Newsletter from '../components/Newsletter';
 
 export default async function Home() {
   const featuredPosts = await getFeaturedPosts(3);
@@ -120,6 +121,9 @@ export default async function Home() {
           ))}
         </div>
       </section>
+
+      {/* Newsletter Signup - NEW */}
+      <Newsletter />
 
       {/* Featured Content Sections */}
       

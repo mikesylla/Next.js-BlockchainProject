@@ -1,4 +1,4 @@
-// components/FilterTags.tsx
+// src/components/FilterTags.tsx
 export default function FilterTags({ 
   tags, 
   selectedTags, 
