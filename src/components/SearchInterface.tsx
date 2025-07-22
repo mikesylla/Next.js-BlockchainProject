@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { PostData, TutorialData, CourseData } from '../../lib/markdown';
 
-type ContentItem = PostData | TutorialData | CourseData;
 type ContentType = 'posts' | 'tutorials' | 'courses';
+type ContentItem = (PostData | TutorialData | CourseData) & { contentType: ContentType };
 
 interface SearchFilters {
   contentTypes: ContentType[];
